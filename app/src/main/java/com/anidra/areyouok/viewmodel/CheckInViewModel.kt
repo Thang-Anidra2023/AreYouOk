@@ -3,7 +3,7 @@ package com.anidra.areyouok.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.anidra.areyouok.data.repositories.CheckInRepository
-import com.anidra.areyouok.data.repositories.EmergencyContactRepository
+import com.anidra.areyouok.data.repositories.EmergencyContactsRepository
 import com.anidra.areyouok.data.room.entity.CheckInSyncState
 import com.anidra.areyouok.data.room.entity.EmergencyContactEntity
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,13 +24,13 @@ data class CheckInUiState(
 
 @HiltViewModel
 class CheckInViewModel @Inject constructor(
-    private val contactsRepo: EmergencyContactRepository,
+    private val contactsRepo: EmergencyContactsRepository,
     private val checkInRepo: CheckInRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<CheckInUiState> =
         combine(
-            contactsRepo.contacts,
+            contactsRepo.observeContacts(),
             checkInRepo.observeToday()
         ) { contacts, today ->
             val sync = today?.syncState?.let { CheckInSyncState.fromInt(it) } ?: CheckInSyncState.PENDING
@@ -60,15 +60,13 @@ class CheckInViewModel @Inject constructor(
         checkInRepo.retrySyncNow()
     }
 
-    fun addContact(name: String, email: String, phone: String, onError: (String) -> Unit) {
+    fun addContact(label: String, email: String, mobileNumber: String, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                contactsRepo.addContact(
-                    EmergencyContactEntity(
-                        name = name.trim(),
-                        email = email.trim(),
-                        phone = phone.trim()
-                    )
+                contactsRepo.addLocal(
+                    mobileNumber = mobileNumber.trim(),
+                    email = email.trim(),
+                    label = label.trim().ifBlank { null }
                 )
             } catch (e: Exception) {
                 onError(e.message ?: "Could not save contact")
@@ -76,16 +74,14 @@ class CheckInViewModel @Inject constructor(
         }
     }
 
-    fun updateContact(id: Long, name: String, email: String, phone: String, onError: (String) -> Unit) {
+    fun updateContact(localId: String, label: String, email: String, mobileNumber: String, onError: (String) -> Unit) {
         viewModelScope.launch {
             try {
-                contactsRepo.updateContact(
-                    EmergencyContactEntity(
-                        id = id,
-                        name = name.trim(),
-                        email = email.trim(),
-                        phone = phone.trim()
-                    )
+                contactsRepo.updateLocal(
+                    localId = localId,
+                    mobileNumber = mobileNumber.trim(),
+                    email = email.trim(),
+                    label = label.trim().ifBlank { null }
                 )
             } catch (e: Exception) {
                 onError(e.message ?: "Could not update contact")
@@ -94,6 +90,8 @@ class CheckInViewModel @Inject constructor(
     }
 
     fun deleteContact(contact: EmergencyContactEntity) {
-        viewModelScope.launch { contactsRepo.deleteContact(contact) }
+        viewModelScope.launch {
+            contactsRepo.deleteLocal(contact.localId)
+        }
     }
 }

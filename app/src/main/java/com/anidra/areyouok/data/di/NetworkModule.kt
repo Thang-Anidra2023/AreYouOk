@@ -2,6 +2,7 @@ package com.anidra.areyouok.data.di
 
 import com.anidra.areyouok.data.network.AuthApi
 import com.anidra.areyouok.data.network.CheckInApi
+import com.anidra.areyouok.data.network.EmergencyContactsApi
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
@@ -18,22 +19,28 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // From your OpenAPI server block
+    // OpenAPI server base URL
     private const val BASE_URL = "http://13.203.195.38:8080/checkin/"
 
     @Provides
     @Singleton
-    fun provideMoshi(): Moshi = Moshi.Builder()
-        .add(KotlinJsonAdapterFactory())
-        .build()
+    fun provideMoshi(): Moshi =
+        Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
 
     @Provides
     @Singleton
     fun provideOkHttp(): OkHttpClient {
         val logger = HttpLoggingInterceptor().apply {
-            // change to BODY if you want to debug payloads
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = if (com.anidra.areyouok.BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.BASIC
+            }
+            redactHeader("Authorization")
         }
+
         return OkHttpClient.Builder()
             .addInterceptor(logger)
             .build()
@@ -57,4 +64,9 @@ object NetworkModule {
     @Singleton
     fun provideCheckInApi(retrofit: Retrofit): CheckInApi =
         retrofit.create(CheckInApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideEmergencyContactsApi(retrofit: Retrofit): EmergencyContactsApi =
+        retrofit.create(EmergencyContactsApi::class.java)
 }

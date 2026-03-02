@@ -26,21 +26,23 @@ import androidx.compose.ui.window.DialogProperties
 import com.anidra.areyouok.components.AuthColors
 import com.anidra.areyouok.data.room.entity.EmergencyContactEntity
 
-
 @Composable
 fun EmergencyContactDialog(
     modifier: Modifier = Modifier,
     initial: EmergencyContactEntity? = null,   // null = add, non-null = edit
     onDismiss: () -> Unit,
-    onConfirm: (name: String, email: String, phone: String) -> Unit
+    onConfirm: (label: String, email: String, mobileNumber: String) -> Unit
 ) {
     val isEdit = initial != null
+    val key = initial?.localId ?: "new"
 
-    var name by rememberSaveable(initial?.id) { mutableStateOf(initial?.name.orEmpty()) }
-    var email by rememberSaveable(initial?.id) { mutableStateOf(initial?.email.orEmpty()) }
-    var phone by rememberSaveable(initial?.id) { mutableStateOf(initial?.phone.orEmpty()) }
+    // Map: label/name -> label, phone -> mobileNumber
+    var label by rememberSaveable(key) { mutableStateOf(initial?.label.orEmpty()) }
+    var email by rememberSaveable(key) { mutableStateOf(initial?.email.orEmpty()) }
+    var mobile by rememberSaveable(key) { mutableStateOf(initial?.mobileNumber.orEmpty()) }
 
-    val canSave = name.trim().isNotBlank() && (email.trim().isNotBlank() || phone.trim().isNotBlank())
+    // Server requires BOTH email + mobileNumber, label optional
+    val canSave = email.trim().isNotBlank() && mobile.trim().isNotBlank()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -78,9 +80,9 @@ fun EmergencyContactDialog(
                     Spacer(Modifier.height(18.dp))
 
                     DialogField(
-                        value = name,
-                        onValueChange = { name = it },
-                        placeholder = "Name",
+                        value = label,
+                        onValueChange = { label = it },
+                        placeholder = "Label (optional) — e.g. Mom / Alex",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                     )
 
@@ -89,16 +91,17 @@ fun EmergencyContactDialog(
                     DialogField(
                         value = email,
                         onValueChange = { email = it },
-                        placeholder = "Email Address",
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                        placeholder = "Email Address (required)",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        isError = email.isNotBlank() && !email.contains("@")
                     )
 
                     Spacer(Modifier.height(16.dp))
 
                     DialogField(
-                        value = phone,
-                        onValueChange = { phone = it },
-                        placeholder = "Phone Number",
+                        value = mobile,
+                        onValueChange = { mobile = it },
+                        placeholder = "Phone Number (required)",
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                     )
 
@@ -109,9 +112,9 @@ fun EmergencyContactDialog(
                         enabled = canSave,
                         onClick = {
                             onConfirm(
-                                name.trim(),
+                                label.trim(),
                                 email.trim(),
-                                phone.trim()
+                                mobile.trim()
                             )
                         },
                         modifier = Modifier
@@ -180,7 +183,8 @@ private fun DialogField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    keyboardOptions: KeyboardOptions
+    keyboardOptions: KeyboardOptions,
+    isError: Boolean = false
 ) {
     val shape = RoundedCornerShape(22.dp)
     val container = Color.White.copy(alpha = 0.10f)
@@ -197,6 +201,7 @@ private fun DialogField(
         shape = shape,
         placeholder = { Text(placeholder, color = hint) },
         keyboardOptions = keyboardOptions,
+        isError = isError,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = container,
             unfocusedContainerColor = container,
@@ -208,7 +213,11 @@ private fun DialogField(
             focusedTextColor = text,
             unfocusedTextColor = text,
             focusedPlaceholderColor = hint,
-            unfocusedPlaceholderColor = hint
+            unfocusedPlaceholderColor = hint,
+            errorContainerColor = container,
+            errorTextColor = text,
+            errorCursorColor = Color.White,
+            errorIndicatorColor = Color.Transparent
         )
     )
 }

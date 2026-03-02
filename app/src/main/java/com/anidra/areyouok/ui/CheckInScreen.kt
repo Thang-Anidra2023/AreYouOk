@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.PersonAddAlt1
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.anidra.areyouok.components.AuthBackground
 import com.anidra.areyouok.components.AuthColors
 import com.anidra.areyouok.data.room.entity.EmergencyContactEntity
+import com.anidra.areyouok.data.room.entity.EmergencyContactSyncState
 import com.anidra.areyouok.dialog.EmergencyContactDialog
 import com.anidra.areyouok.viewmodel.CheckInViewModel
 
@@ -52,7 +52,7 @@ fun CheckInScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     AuthBackground(modifier = modifier) {
-        LazyColumn (
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding()
@@ -60,7 +60,7 @@ fun CheckInScreen(
             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            item { Spacer(Modifier.height(46.dp)) } // instead of huge fixed top, optional
+            item { Spacer(Modifier.height(46.dp)) }
 
             item {
                 Text("Hello,", fontSize = 44.sp, fontWeight = FontWeight.Light, color = AuthColors.Title.copy(0.92f))
@@ -89,20 +89,21 @@ fun CheckInScreen(
                     com.anidra.areyouok.data.room.entity.CheckInSyncState.FAILED ->
                         "✓ Checked In (Upload failed — will auto retry)"
                 }
-                item {Text(msg, color = SuccessGreen, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)}
+                item { Text(msg, color = SuccessGreen, fontSize = 22.sp, fontWeight = FontWeight.SemiBold) }
 
                 if (state.syncState == com.anidra.areyouok.data.room.entity.CheckInSyncState.FAILED) {
-                    item{Spacer(Modifier.height(12.dp))}
-                    item {Button(onClick = { viewModel.retrySync() }) {
-                        Text("Retry Sync")
-                    }
+                    item { Spacer(Modifier.height(12.dp)) }
+                    item {
+                        Button(onClick = { viewModel.retrySync() }) {
+                            Text("Retry Sync")
+                        }
                     }
                 }
             }
 
             item { Spacer(Modifier.height(40.dp)) }
 
-            // ✅ Contacts list
+            // ✅ Contacts list (UPDATED)
             item {
                 EmergencyContactsSectionEntity(
                     contacts = state.contacts,
@@ -114,7 +115,6 @@ fun CheckInScreen(
 
             item { Spacer(Modifier.height(18.dp)) }
 
-            // Hide add button when already 3 contacts (from VM)
             if (state.canAddMore) {
                 item {
                     GlassPillButton(
@@ -126,29 +126,44 @@ fun CheckInScreen(
                 }
             }
 
-
-
             snackMsg?.let { msg ->
                 item { Spacer(Modifier.height(14.dp)) }
                 item { Text(msg, color = Color.White.copy(alpha = 0.85f), fontSize = 14.sp) }
             }
         }
+
         if (showDialog) {
+            val initial = editingContact
+
+            // NOTE:
+            // Your dialog currently returns (name, email, phone).
+            // We map:
+            // - name  -> label
+            // - phone -> mobileNumber
             EmergencyContactDialog(
-                initial = editingContact,
+                initial = initial, // make sure your dialog reads label/email/mobileNumber now
                 onDismiss = {
                     showDialog = false
                     editingContact = null
                 },
-                onConfirm = { name, email, phone ->
+                onConfirm = { nameOrLabel, email, phoneOrMobile ->
                     showDialog = false
                     val editing = editingContact
                     editingContact = null
 
                     if (editing == null) {
-                        viewModel.addContact(name, email, phone) { msg -> snackMsg = msg }
+                        viewModel.addContact(
+                            label = nameOrLabel,
+                            email = email,
+                            mobileNumber = phoneOrMobile
+                        ) { msg -> snackMsg = msg }
                     } else {
-                        viewModel.updateContact(editing.id, name, email, phone) { msg -> snackMsg = msg }
+                        viewModel.updateContact(
+                            localId = editing.localId,
+                            label = nameOrLabel,
+                            email = email,
+                            mobileNumber = phoneOrMobile
+                        ) { msg -> snackMsg = msg }
                     }
                 }
             )
@@ -156,7 +171,7 @@ fun CheckInScreen(
     }
 }
 
-/** ---------- UI list that uses EmergencyContactEntity directly ---------- */
+/** ---------- UI list that uses NEW EmergencyContactEntity ---------- */
 
 @Composable
 private fun EmergencyContactsSectionEntity(
@@ -177,8 +192,18 @@ private fun EmergencyContactsSectionEntity(
 
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             contacts.forEach { c ->
+                val sync = EmergencyContactSyncState.fromInt(c.syncState)
+                val title = c.label?.takeIf { it.isNotBlank() } ?: c.email
+                val subtitle = c.mobileNumber
+
                 EmergencyContactRow(
-                    name = c.name,
+                    title = title,
+                    subtitle = subtitle,
+                    statusText = when (sync) {
+                        EmergencyContactSyncState.SYNCED -> "Synced"
+                        EmergencyContactSyncState.PENDING -> "Uploading..."
+                        EmergencyContactSyncState.FAILED -> "Failed"
+                    },
                     onEdit = { onEdit(c) },
                     onDelete = { onDelete(c) }
                 )
@@ -260,7 +285,9 @@ private fun CheckInCircle(
 
 @Composable
 private fun EmergencyContactRow(
-    name: String,
+    title: String,
+    subtitle: String,
+    statusText: String,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -295,13 +322,26 @@ private fun EmergencyContactRow(
 
             Spacer(Modifier.width(14.dp))
 
-            Text(
-                text = name,
-                color = Color.White.copy(alpha = 0.92f),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White.copy(alpha = 0.92f),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    color = Color.White.copy(alpha = 0.78f),
+                    fontSize = 14.sp
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = statusText,
+                    color = Color.White.copy(alpha = 0.70f),
+                    fontSize = 12.sp
+                )
+            }
 
             CircleActionButton(
                 background = Color.White.copy(alpha = 0.14f),

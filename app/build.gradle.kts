@@ -38,7 +38,9 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true}
 
 }
 

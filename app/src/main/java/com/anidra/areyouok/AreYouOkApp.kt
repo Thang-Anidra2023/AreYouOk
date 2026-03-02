@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.anidra.areyouok.data.work.CheckInWorkScheduler
+import com.anidra.areyouok.data.work.EmergencyContactsWorkScheduler
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -20,5 +21,6 @@ class AreYouOkApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         CheckInWorkScheduler.ensurePeriodic(this)
+        EmergencyContactsWorkScheduler.ensurePeriodic(this)
     }
 }
