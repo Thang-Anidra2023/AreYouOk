@@ -22,6 +22,7 @@ import com.anidra.areyouok.ui.ForgotPasswordScreen
 import com.anidra.areyouok.ui.LoginScreen
 import com.anidra.areyouok.ui.NotificationsScreen
 import com.anidra.areyouok.ui.RegisterScreen
+import com.anidra.areyouok.ui.RequestNotificationPermissionOnce
 import com.anidra.areyouok.ui.screens.AccountInfoScreen
 import com.anidra.areyouok.ui.screens.SettingsScreen
 import dagger.hilt.android.AndroidEntryPoint
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
+            RequestNotificationPermissionOnce()
             Surface(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background
