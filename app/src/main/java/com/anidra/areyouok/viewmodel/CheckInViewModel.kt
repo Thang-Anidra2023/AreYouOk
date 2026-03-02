@@ -17,7 +17,6 @@ import javax.inject.Inject
 data class CheckInUiState(
     val contacts: List<EmergencyContactEntity> = emptyList(),
     val canAddMore: Boolean = true,
-
     val checkedInToday: Boolean = false,
     val syncState: CheckInSyncState = CheckInSyncState.PENDING
 )
@@ -28,23 +27,40 @@ class CheckInViewModel @Inject constructor(
     private val checkInRepo: CheckInRepository
 ) : ViewModel() {
 
-    val uiState: StateFlow<CheckInUiState> =
-        combine(
-            contactsRepo.observeContacts(),
-            checkInRepo.observeToday()
-        ) { contacts, today ->
-            val sync = today?.syncState?.let { CheckInSyncState.fromInt(it) } ?: CheckInSyncState.PENDING
-            CheckInUiState(
-                contacts = contacts,
-                canAddMore = contacts.size < 3,
-                checkedInToday = today != null,
-                syncState = sync
-            )
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = CheckInUiState()
+    val uiState: StateFlow<CheckInUiState> = combine(
+        contactsRepo.observeContacts(),
+        checkInRepo.observeToday()
+    ) { contacts, today ->
+        val sync = today?.syncState?.let { CheckInSyncState.fromInt(it) }
+            ?: CheckInSyncState.PENDING
+
+        CheckInUiState(
+            contacts = contacts,
+            canAddMore = contacts.size < 3,
+            checkedInToday = today != null,
+            syncState = sync
         )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = CheckInUiState()
+    )
+
+    init {
+        refreshContacts()
+    }
+
+    fun refreshContacts() {
+        viewModelScope.launch {
+            try {
+                contactsRepo.syncServerWithLocal(
+                    restoreFromServerWhenLocalEmpty = true
+                )
+            } catch (_: Exception) {
+                // optional: expose snackbar/toast state here
+            }
+        }
+    }
 
     fun checkInToday(onError: (String) -> Unit) {
         viewModelScope.launch {
@@ -58,9 +74,22 @@ class CheckInViewModel @Inject constructor(
 
     fun retrySync() {
         checkInRepo.retrySyncNow()
+        viewModelScope.launch {
+            try {
+                contactsRepo.syncServerWithLocal(
+                    restoreFromServerWhenLocalEmpty = true
+                )
+            } catch (_: Exception) {
+            }
+        }
     }
 
-    fun addContact(label: String, email: String, mobileNumber: String, onError: (String) -> Unit) {
+    fun addContact(
+        label: String,
+        email: String,
+        mobileNumber: String,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 contactsRepo.addLocal(
@@ -74,7 +103,13 @@ class CheckInViewModel @Inject constructor(
         }
     }
 
-    fun updateContact(localId: String, label: String, email: String, mobileNumber: String, onError: (String) -> Unit) {
+    fun updateContact(
+        localId: String,
+        label: String,
+        email: String,
+        mobileNumber: String,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
                 contactsRepo.updateLocal(
