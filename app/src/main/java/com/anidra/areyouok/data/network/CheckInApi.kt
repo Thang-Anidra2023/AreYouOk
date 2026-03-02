@@ -1,16 +1,17 @@
 package com.anidra.areyouok.data.network
 
-import com.anidra.areyouok.data.network.dto.CheckInCreateRequest
-import com.anidra.areyouok.data.network.dto.CheckInCreateResponse
+import com.anidra.areyouok.data.network.dto.CheckInRequest
+import com.anidra.areyouok.data.network.dto.MessageResponse
 import retrofit2.http.Body
 import retrofit2.http.Header
 import retrofit2.http.POST
 
 interface CheckInApi {
-    @POST("v1/checkins")
-    suspend fun createCheckIn(
+
+    // POST http://13.203.195.38:8080/checkin/api/user/check-in
+    @POST("api/user/check-in")
+    suspend fun checkIn(
         @Header("Authorization") authorization: String,
-        @Header("Idempotency-Key") idempotencyKey: String,
-        @Body body: CheckInCreateRequest
-    ): CheckInCreateResponse
+        @Body body: CheckInRequest
+    ): MessageResponse
 }

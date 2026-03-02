@@ -1,12 +1,13 @@
 package com.anidra.areyouok.data.work
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.anidra.areyouok.data.datastore.UserPrefs
 import com.anidra.areyouok.data.network.CheckInApi
-import com.anidra.areyouok.data.network.dto.CheckInCreateRequest
+import com.anidra.areyouok.data.network.dto.CheckInRequest
 import com.anidra.areyouok.data.room.dao.CheckInDao
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -44,20 +45,16 @@ class CheckInSyncWorker @AssistedInject constructor(
             try {
                 val date = LocalDate.ofEpochDay(entity.epochDay).toString() // yyyy-MM-dd
 
-                val res = api.createCheckIn(
+                val res = api.checkIn(
                     authorization = "Bearer $token",
-                    idempotencyKey = "checkin-${entity.epochDay}",
-                    body = CheckInCreateRequest(
-                        epochDay = entity.epochDay,
-                        date = date,
-                        timeZoneId = entity.timeZoneId,
-                        createdAtMillis = entity.createdAtMillis
-                    )
+                    body = CheckInRequest(snoozeDays = null) // or set a value 1..90 if you implement snooze
                 )
+
+                Log.i("CheckInSyncWorker", "Server response message = ${res.message}")
 
                 dao.markSynced(
                     epochDay = entity.epochDay,
-                    serverId = res.id,
+                    serverId = null,
                     syncedAtMillis = now,
                     attemptAtMillis = now,
                     attemptCount = attempts

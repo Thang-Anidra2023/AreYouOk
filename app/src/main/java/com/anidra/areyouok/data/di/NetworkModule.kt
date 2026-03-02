@@ -1,5 +1,6 @@
 package com.anidra.areyouok.data.di
 
+import com.anidra.areyouok.data.network.AuthApi
 import com.anidra.areyouok.data.network.CheckInApi
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -17,18 +18,20 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // TODO: change to your backend base url
-    private const val BASE_URL = "https://YOUR_SERVER_DOMAIN/"
+    // From your OpenAPI server block
+    private const val BASE_URL = "http://13.203.195.38:8080/checkin/"
 
     @Provides
     @Singleton
-    fun provideMoshi(): Moshi =
-        Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    fun provideMoshi(): Moshi = Moshi.Builder()
+        .add(KotlinJsonAdapterFactory())
+        .build()
 
     @Provides
     @Singleton
     fun provideOkHttp(): OkHttpClient {
         val logger = HttpLoggingInterceptor().apply {
+            // change to BODY if you want to debug payloads
             level = HttpLoggingInterceptor.Level.BASIC
         }
         return OkHttpClient.Builder()
@@ -44,6 +47,11 @@ object NetworkModule {
             .client(okHttp)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi =
+        retrofit.create(AuthApi::class.java)
 
     @Provides
     @Singleton

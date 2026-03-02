@@ -80,6 +80,7 @@ fun AppNavigation() {
                 LoginScreen(
                     onLogin = { email, password ->
                         // TODO: validate / call ViewModel / auth first
+
                         navController.navigate(Routes.CHECK_IN) {
                             // optional: remove login from back stack
                             popUpTo(Routes.LOGIN) { inclusive = true }

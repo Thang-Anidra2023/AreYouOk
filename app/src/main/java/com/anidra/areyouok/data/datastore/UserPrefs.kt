@@ -17,15 +17,18 @@ class UserPrefs @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val KEY_AUTH_TOKEN = stringPreferencesKey("auth_token")
+    private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
     private val KEY_USER_ID = stringPreferencesKey("user_id")
 
     val authToken: Flow<String?> = context.dataStore.data.map { it[KEY_AUTH_TOKEN] }
+    val refreshToken: Flow<String?> = context.dataStore.data.map { it[KEY_REFRESH_TOKEN] }
     val userId: Flow<String?> = context.dataStore.data.map { it[KEY_USER_ID] }
 
-    suspend fun setSession(userId: String, token: String) {
+    suspend fun setSession(userId: String, accessToken: String, refreshToken: String?) {
         context.dataStore.edit {
             it[KEY_USER_ID] = userId
-            it[KEY_AUTH_TOKEN] = token
+            it[KEY_AUTH_TOKEN] = accessToken
+            if (refreshToken.isNullOrBlank()) it.remove(KEY_REFRESH_TOKEN) else it[KEY_REFRESH_TOKEN] = refreshToken
         }
     }
 
@@ -33,6 +36,7 @@ class UserPrefs @Inject constructor(
         context.dataStore.edit {
             it.remove(KEY_USER_ID)
             it.remove(KEY_AUTH_TOKEN)
+            it.remove(KEY_REFRESH_TOKEN)
         }
     }
 }
