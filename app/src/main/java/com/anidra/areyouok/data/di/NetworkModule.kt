@@ -20,7 +20,7 @@ import javax.inject.Singleton
 object NetworkModule {
 
     // OpenAPI server base URL
-    private const val BASE_URL = "http://13.203.195.38:8080/checkin/"
+    private const val BASE_URL = "https://feeling-okay.com/api/checkin/"
 
     @Provides
     @Singleton
