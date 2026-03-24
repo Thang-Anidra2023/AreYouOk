@@ -1,16 +1,16 @@
 package com.anidra.areyouok.data.repositories
 
 import android.content.Context
-import com.anidra.areyouok.data.datastore.UserPrefs
 import com.anidra.areyouok.data.network.EmergencyContactsApi
 import com.anidra.areyouok.data.network.dto.EmergencyContactRequest
 import com.anidra.areyouok.data.room.dao.EmergencyContactDao
 import com.anidra.areyouok.data.room.entity.EmergencyContactEntity
 import com.anidra.areyouok.data.room.entity.EmergencyContactSyncState
+import com.anidra.areyouok.data.session.SessionExpiredException
+import com.anidra.areyouok.data.manager.SessionManager
 import com.anidra.areyouok.data.work.EmergencyContactsWorkScheduler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 import java.io.IOException
 import java.util.UUID
@@ -21,7 +21,7 @@ import javax.inject.Singleton
 class EmergencyContactsRepository @Inject constructor(
     private val dao: EmergencyContactDao,
     private val api: EmergencyContactsApi,
-    private val prefs: UserPrefs,
+    private val sessionManager: SessionManager,
     @ApplicationContext private val context: Context
 ) {
 
@@ -99,74 +99,68 @@ class EmergencyContactsRepository @Inject constructor(
     suspend fun syncServerWithLocal(
         restoreFromServerWhenLocalEmpty: Boolean = true
     ) {
-        val token = prefs.authToken.first()
-        if (token.isNullOrBlank()) return
-
-        val auth = "Bearer $token"
-
         var local = sanitizeLocalContacts()
-        val remote = api.list(auth)
-
-        // Restore from server only when local is empty
-        if (restoreFromServerWhenLocalEmpty && local.isEmpty() && remote.isNotEmpty()) {
-            val now = System.currentTimeMillis()
-            val restored = remote
-                .take(3)
-                .map { item ->
-                    EmergencyContactEntity(
-                        localId = UUID.randomUUID().toString(),
-                        mobileNumber = normalizePhone(item.mobileNumber),
-                        email = normalizeEmail(item.email),
-                        label = normalizeLabel(item.label),
-                        contactIndex = item.contactIndex,
-                        verified = item.verified,
-                        syncState = EmergencyContactSyncState.SYNCED.value,
-                        createdAtMillis = now,
-                        updatedAtMillis = now,
-                        syncedAtMillis = now,
-                        lastAttemptAtMillis = now,
-                        attemptCount = 0,
-                        lastError = null
-                    )
-                }
-
-            dao.replaceAll(restored)
-            return
-        }
-
-        val localFingerprints = local
-            .map { fingerprint(it.email, it.mobileNumber, it.label) }
-            .sortedWith(compareBy({ it.email }, { it.phone }, { it.label ?: "" }))
-
-        val remoteFingerprints = remote
-            .map { fingerprint(it.email, it.mobileNumber, it.label) }
-            .sortedWith(compareBy({ it.email }, { it.phone }, { it.label ?: "" }))
-
-        // Already same -> just mark local as synced and refresh server metadata
-        if (localFingerprints == remoteFingerprints) {
-            val now = System.currentTimeMillis()
-            val remoteByFingerprint = remote.associateBy {
-                fingerprint(it.email, it.mobileNumber, it.label)
-            }
-
-            local.forEach { localItem ->
-                val remoteItem = remoteByFingerprint[
-                    fingerprint(localItem.email, localItem.mobileNumber, localItem.label)
-                ]
-
-                dao.markSynced(
-                    localId = localItem.localId,
-                    contactIndex = remoteItem?.contactIndex,
-                    verified = remoteItem?.verified,
-                    syncedAtMillis = now,
-                    attemptAtMillis = now,
-                    attemptCount = localItem.attemptCount
-                )
-            }
-            return
-        }
 
         try {
+            val remote = listRemote()
+
+            if (restoreFromServerWhenLocalEmpty && local.isEmpty() && remote.isNotEmpty()) {
+                val now = System.currentTimeMillis()
+                val restored = remote
+                    .take(3)
+                    .map { item ->
+                        EmergencyContactEntity(
+                            localId = UUID.randomUUID().toString(),
+                            mobileNumber = normalizePhone(item.mobileNumber),
+                            email = normalizeEmail(item.email),
+                            label = normalizeLabel(item.label),
+                            contactIndex = item.contactIndex,
+                            verified = item.verified,
+                            syncState = EmergencyContactSyncState.SYNCED.value,
+                            createdAtMillis = now,
+                            updatedAtMillis = now,
+                            syncedAtMillis = now,
+                            lastAttemptAtMillis = now,
+                            attemptCount = 0,
+                            lastError = null
+                        )
+                    }
+
+                dao.replaceAll(restored)
+                return
+            }
+
+            val localFingerprints = local
+                .map { fingerprint(it.email, it.mobileNumber, it.label) }
+                .sortedWith(compareBy({ it.email }, { it.phone }, { it.label ?: "" }))
+
+            val remoteFingerprints = remote
+                .map { fingerprint(it.email, it.mobileNumber, it.label) }
+                .sortedWith(compareBy({ it.email }, { it.phone }, { it.label ?: "" }))
+
+            if (localFingerprints == remoteFingerprints) {
+                val now = System.currentTimeMillis()
+                val remoteByFingerprint = remote.associateBy {
+                    fingerprint(it.email, it.mobileNumber, it.label)
+                }
+
+                local.forEach { localItem ->
+                    val remoteItem = remoteByFingerprint[
+                        fingerprint(localItem.email, localItem.mobileNumber, localItem.label)
+                    ]
+
+                    dao.markSynced(
+                        localId = localItem.localId,
+                        contactIndex = remoteItem?.contactIndex,
+                        verified = remoteItem?.verified,
+                        syncedAtMillis = now,
+                        attemptAtMillis = now,
+                        attemptCount = localItem.attemptCount
+                    )
+                }
+                return
+            }
+
             local.forEach { item ->
                 dao.setSyncState(
                     localId = item.localId,
@@ -175,22 +169,13 @@ class EmergencyContactsRepository @Inject constructor(
                 )
             }
 
-            // Delete everything from server first
             remote.forEach { serverItem ->
-                api.delete(auth, serverItem.id)
+                deleteRemote(serverItem.id)
             }
 
-            // Upload local 3-contact source of truth
             local = sanitizeLocalContacts()
             for (localItem in local) {
-                val response = api.add(
-                    auth,
-                    EmergencyContactRequest(
-                        mobileNumber = localItem.mobileNumber,
-                        email = localItem.email,
-                        label = localItem.label
-                    )
-                )
+                val response = addRemote(localItem)
 
                 val now = System.currentTimeMillis()
                 dao.markSynced(
@@ -202,20 +187,37 @@ class EmergencyContactsRepository @Inject constructor(
                     attemptCount = localItem.attemptCount + 1
                 )
             }
+        } catch (e: SessionExpiredException) {
+            markAllLocalFailed(errorMessage = e.message ?: "Session expired. Please log in again.")
+            throw e
         } catch (e: Exception) {
             markAllLocalFailed(errorMessage = toSyncErrorMessage(e))
             throw e
         }
     }
 
-    /**
-     * Cleans up bad old local state from the previous incremental-sync design.
-     *
-     * Priority:
-     * 1. Keep FAILED/PENDING before SYNCED, because local unsynced edits should win.
-     * 2. Prefer most recently updated rows.
-     * 3. Keep max 3 rows.
-     */
+    private suspend fun listRemote() =
+        sessionManager.withAuthRetry { auth ->
+            api.list(auth)
+        }
+
+    private suspend fun deleteRemote(serverId: String) =
+        sessionManager.withAuthRetry { auth ->
+            api.delete(auth, serverId)
+        }
+
+    private suspend fun addRemote(localItem: EmergencyContactEntity) =
+        sessionManager.withAuthRetry { auth ->
+            api.add(
+                auth,
+                EmergencyContactRequest(
+                    mobileNumber = localItem.mobileNumber,
+                    email = localItem.email,
+                    label = localItem.label
+                )
+            )
+        }
+
     private suspend fun sanitizeLocalContacts(): List<EmergencyContactEntity> {
         val current = dao.getAllOnce()
 
@@ -283,6 +285,7 @@ class EmergencyContactsRepository @Inject constructor(
 
     private fun toSyncErrorMessage(e: Exception): String {
         return when (e) {
+            is SessionExpiredException -> e.message ?: "Session expired. Please log in again."
             is HttpException -> "HTTP ${e.code()}: ${e.message()}"
             is IOException -> "Network error: ${e.message ?: "IO error"}"
             else -> e.message ?: "Unknown sync error"

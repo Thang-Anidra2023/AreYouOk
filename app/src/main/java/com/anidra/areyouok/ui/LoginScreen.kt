@@ -41,7 +41,7 @@ import com.anidra.areyouok.viewmodel.LoginViewModel
 fun LoginScreen(
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
-    onLogin: (email: String, password: String) -> Unit = { _, _ -> },
+    onLoginSuccess: () -> Unit,
     onForgotPassword: () -> Unit = {},
     onSignUp: () -> Unit = {}
 ) {
@@ -56,7 +56,7 @@ fun LoginScreen(
 
     LaunchedEffect(uiState.success) {
         if (uiState.success) {
-            onLogin(email.trim(), password)
+            onLoginSuccess()
         }
     }
 

@@ -5,62 +5,62 @@ import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.anidra.areyouok.data.datastore.UserPrefs
+import com.anidra.areyouok.data.manager.SessionManager
 import com.anidra.areyouok.data.network.CheckInApi
 import com.anidra.areyouok.data.network.dto.CheckInRequest
 import com.anidra.areyouok.data.room.dao.CheckInDao
+import com.anidra.areyouok.data.session.SessionExpiredException
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 import java.io.IOException
-import java.time.LocalDate
-import javax.inject.Inject
 
 @HiltWorker
 class CheckInSyncWorker @AssistedInject constructor(
     private val dao: CheckInDao,
     private val api: CheckInApi,
-    private val prefs: UserPrefs,
+    private val sessionManager: SessionManager,
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val token = prefs.authToken.first()
-        if (token.isNullOrBlank()) {
-            // No session yet -> try again later
-            return Result.retry()
-        }
-
         val pending = dao.getNotSynced(limit = 50)
         if (pending.isEmpty()) return Result.success()
 
         var shouldRetry = false
 
         for (entity in pending) {
+            if (isStopped) return Result.success()
+
             val now = System.currentTimeMillis()
             val attempts = entity.attemptCount + 1
 
             try {
-                val date = LocalDate.ofEpochDay(entity.epochDay).toString() // yyyy-MM-dd
-
-                val res = api.checkIn(
-                    authorization = "Bearer $token",
-                    body = CheckInRequest(snoozeDays = null) // or set a value 1..90 if you implement snooze
-                )
-
-                Log.i("CheckInSyncWorker", "Server response message = ${res.message}")
+                sessionManager.withAuthRetry { auth ->
+                    val res = api.checkIn(
+                        authorization = auth,
+                        body = CheckInRequest(snoozeDays = null)
+                    )
+                    Log.i("CheckInSyncWorker", "Server response message = ${res.message}")
+                }
 
                 dao.markSynced(
                     epochDay = entity.epochDay,
-                    serverId = null,
+                    serverId = entity.serverId,
                     syncedAtMillis = now,
                     attemptAtMillis = now,
                     attemptCount = attempts
                 )
+            } catch (e: SessionExpiredException) {
+                dao.markFailed(
+                    epochDay = entity.epochDay,
+                    attemptAtMillis = now,
+                    attemptCount = attempts,
+                    error = e.message ?: "Session expired. Please log in again."
+                )
+                return Result.success()
             } catch (e: IOException) {
-                // network issue -> retry whole worker
                 dao.markFailed(
                     epochDay = entity.epochDay,
                     attemptAtMillis = now,
@@ -69,16 +69,13 @@ class CheckInSyncWorker @AssistedInject constructor(
                 )
                 shouldRetry = true
             } catch (e: HttpException) {
-                // server responded
                 val code = e.code()
                 val msg = "HTTP $code: ${e.message()}"
 
-                // If server supports idempotency, duplicates won't happen.
-                // If not, you might see 409 conflict for same day -> treat as success.
                 if (code == 409) {
                     dao.markSynced(
                         epochDay = entity.epochDay,
-                        serverId = entity.serverId, // keep whatever
+                        serverId = entity.serverId,
                         syncedAtMillis = now,
                         attemptAtMillis = now,
                         attemptCount = attempts

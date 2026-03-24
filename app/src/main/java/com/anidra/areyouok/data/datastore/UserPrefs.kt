@@ -28,7 +28,22 @@ class UserPrefs @Inject constructor(
         context.dataStore.edit {
             it[KEY_USER_ID] = userId
             it[KEY_AUTH_TOKEN] = accessToken
-            if (refreshToken.isNullOrBlank()) it.remove(KEY_REFRESH_TOKEN) else it[KEY_REFRESH_TOKEN] = refreshToken
+            if (refreshToken.isNullOrBlank()) {
+                it.remove(KEY_REFRESH_TOKEN)
+            } else {
+                it[KEY_REFRESH_TOKEN] = refreshToken
+            }
+        }
+    }
+
+    suspend fun updateTokens(accessToken: String, refreshToken: String?) {
+        context.dataStore.edit {
+            it[KEY_AUTH_TOKEN] = accessToken
+            if (refreshToken.isNullOrBlank()) {
+                it.remove(KEY_REFRESH_TOKEN)
+            } else {
+                it[KEY_REFRESH_TOKEN] = refreshToken
+            }
         }
     }
 

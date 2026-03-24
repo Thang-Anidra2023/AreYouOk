@@ -47,4 +47,9 @@ object EmergencyContactsWorkScheduler {
             req
         )
     }
+
+    fun cancelAll(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_ONE_TIME)
+        WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_PERIODIC)
+    }
 }

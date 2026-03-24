@@ -37,4 +37,6 @@ object CheckInReminderSchedule {
 
     fun tomorrowMorning(now: ZonedDateTime): ZonedDateTime =
         ZonedDateTime.of(now.toLocalDate().plusDays(1), slots.first(), now.zone)
+
+
 }

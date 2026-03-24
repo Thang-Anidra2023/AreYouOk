@@ -48,4 +48,10 @@ object CheckInWorkScheduler {
             req
         )
     }
+
+    fun cancelAll(context: Context) {
+        val wm = WorkManager.getInstance(context)
+        wm.cancelUniqueWork(UNIQUE_PERIODIC)
+        wm.cancelUniqueWork(UNIQUE_ONE_TIME)
+    }
 }

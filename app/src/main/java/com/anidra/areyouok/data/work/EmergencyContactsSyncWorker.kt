@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.anidra.areyouok.data.repositories.EmergencyContactsRepository
+import com.anidra.areyouok.data.session.SessionExpiredException
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import retrofit2.HttpException
@@ -23,14 +24,12 @@ class EmergencyContactsSyncWorker @AssistedInject constructor(
                 restoreFromServerWhenLocalEmpty = true
             )
             Result.success()
+        } catch (_: SessionExpiredException) {
+            Result.success()
         } catch (e: IOException) {
             Result.retry()
         } catch (e: HttpException) {
-            if (e.code() in 500..599) {
-                Result.retry()
-            } else {
-                Result.failure()
-            }
+            if (e.code() in 500..599) Result.retry() else Result.failure()
         } catch (_: Exception) {
             Result.retry()
         }

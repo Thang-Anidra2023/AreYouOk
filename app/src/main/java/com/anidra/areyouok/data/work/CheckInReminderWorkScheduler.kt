@@ -44,4 +44,8 @@ object CheckInReminderWorkScheduler {
             "Scheduled reminder at=$runAt now=$now delayMs=$delayMs"
         )
     }
+
+    fun cancelAll(context: Context) {
+        WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_ONE_TIME)
+    }
 }
