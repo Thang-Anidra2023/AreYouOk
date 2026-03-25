@@ -56,6 +56,121 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anidra.areyouok.components.AuthBackground
 import com.anidra.areyouok.components.AuthColors
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.anidra.areyouok.permissions.PermissionState
+import com.anidra.areyouok.util.findActivity
+import com.anidra.areyouok.util.openAppSettings
+import com.anidra.areyouok.util.openNotificationSettings
+import com.anidra.areyouok.viewmodel.SettingsViewModel
+
+@Composable
+fun SettingsRoute(
+    viewModel: SettingsViewModel,
+    onCheckInTimeClick: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val activity = context.findActivity()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val notificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) {
+        viewModel.refresh(activity)
+    }
+
+    val locationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        viewModel.refresh(activity)
+    }
+
+    val motionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) {
+        viewModel.refresh(activity)
+    }
+
+    DisposableEffect(lifecycleOwner, activity) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refresh(activity)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    SettingsScreen(
+        notificationsEnabled = uiState.notifications.isGranted,
+        locationEnabled = uiState.location.isGranted,
+        motionFitnessEnabled = uiState.motion.isGranted,
+        onCheckInTimeClick = onCheckInTimeClick,
+
+        onNotificationsClick = {
+            when (uiState.notifications.state) {
+                PermissionState.GRANTED,
+                PermissionState.NOT_REQUIRED -> context.openNotificationSettings()
+
+                PermissionState.PERMANENTLY_DENIED -> context.openAppSettings()
+
+                PermissionState.DENIED -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        viewModel.markNotificationsAsked()
+                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        context.openNotificationSettings()
+                    }
+                }
+
+                PermissionState.UNSUPPORTED -> Unit
+            }
+        },
+
+        onLocationClick = {
+            when (uiState.location.state) {
+                PermissionState.GRANTED -> Unit
+                PermissionState.PERMANENTLY_DENIED -> context.openAppSettings()
+                PermissionState.DENIED,
+                PermissionState.NOT_REQUIRED -> {
+                    viewModel.markLocationAsked()
+                    locationLauncher.launch(
+                        arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    )
+                }
+                PermissionState.UNSUPPORTED -> Unit
+            }
+        },
+
+        onMotionFitnessClick = {
+            when (uiState.motion.state) {
+                PermissionState.GRANTED,
+                PermissionState.NOT_REQUIRED -> Unit
+
+                PermissionState.PERMANENTLY_DENIED -> context.openAppSettings()
+
+                PermissionState.DENIED -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        viewModel.markMotionAsked()
+                        motionLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                    }
+                }
+
+                PermissionState.UNSUPPORTED -> Unit
+            }
+        }
+    )
+}
 
 @Composable
 fun SettingsScreen(
@@ -63,19 +178,14 @@ fun SettingsScreen(
     reminderEnabled: Boolean = true,
     autoCheckInEnabled: Boolean = false,
     checkInTimeText: String = "Daily by 10:40",
-    emergencyContactCount: Int = 0,
     notificationsEnabled: Boolean = false,
     locationEnabled: Boolean = true,
     motionFitnessEnabled: Boolean = true,
     versionName: String = "1.1.2",
     onCheckInTimeClick: () -> Unit = {},
-    onEmergencyContactsClick: () -> Unit = {},
     onNotificationsClick: () -> Unit = {},
     onLocationClick: () -> Unit = {},
     onMotionFitnessClick: () -> Unit = {},
-    onSignOutClick: () -> Unit = {},
-    onDeleteAccountClick: () -> Unit = {},
-    onPrivacyPolicyClick: () -> Unit = {}
 ) {
     var monitoringActive by remember { mutableStateOf(reminderEnabled) }
     var autoCheckIn by remember { mutableStateOf(autoCheckInEnabled) }

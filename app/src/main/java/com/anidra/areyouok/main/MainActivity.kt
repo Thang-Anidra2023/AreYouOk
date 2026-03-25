@@ -14,7 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -28,6 +28,7 @@ import com.anidra.areyouok.ui.LoginScreen
 import com.anidra.areyouok.ui.NotificationsScreen
 import com.anidra.areyouok.ui.RegisterScreen
 import com.anidra.areyouok.ui.RequestNotificationPermissionOnce
+import com.anidra.areyouok.ui.SettingsRoute
 import com.anidra.areyouok.ui.screens.AccountInfoScreen
 import com.anidra.areyouok.ui.SettingsScreen
 import com.anidra.areyouok.viewmodel.SessionViewModel
@@ -97,8 +98,7 @@ fun AppNavigation(
     }
 
     LaunchedEffect(sessionState.isLoggedIn, sessionState.loggingOut, route) {
-        if (!sessionState.loading &&
-            !sessionState.loggingOut &&
+        if (!sessionState.loggingOut &&
             !sessionState.isLoggedIn &&
             route != null &&
             route != Routes.LOGIN
@@ -152,7 +152,12 @@ fun AppNavigation(
 
             composable(Routes.CHECK_IN) { CheckInScreen() }
             composable(Routes.ACCOUNT) { AccountInfoScreen() }
-            composable(Routes.SETTINGS) { SettingsScreen() }
+            composable(Routes.SETTINGS) { SettingsRoute(
+                viewModel = hiltViewModel(),
+                onCheckInTimeClick = {
+                    // navigate to time picker screen
+                }
+            ) }
             composable(Routes.NOTIFICATIONS) { NotificationsScreen() }
         }
 

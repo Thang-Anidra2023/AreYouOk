@@ -7,12 +7,16 @@ import com.anidra.areyouok.permissions.PermissionItemUi
 import com.anidra.areyouok.permissions.PermissionPrefs
 import com.anidra.areyouok.permissions.PermissionStatusChecker
 import com.anidra.areyouok.permissions.SettingsPermissionsUiState
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import jakarta.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class SettingsViewModel(
-    context: Context
+@HiltViewModel
+class SettingsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val checker = PermissionStatusChecker(context.applicationContext)
