@@ -29,8 +29,8 @@ import com.anidra.areyouok.ui.RegisterScreen
 import com.anidra.areyouok.ui.RequestNotificationPermissionOnce
 import com.anidra.areyouok.ui.SettingsRoute
 import com.anidra.areyouok.ui.screens.AccountInfoScreen
-import com.anidra.areyouok.ui.SettingsScreen
 import com.anidra.areyouok.viewmodel.SessionViewModel
+import com.anidra.areyouok.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -64,9 +64,16 @@ object Routes {
 
 @Composable
 fun AppNavigation(
-    sessionViewModel: SessionViewModel = hiltViewModel()
+    sessionViewModel: SessionViewModel = hiltViewModel(),
+    settingsViewModel: SettingsViewModel = hiltViewModel()
 ) {
     val sessionState by sessionViewModel.uiState.collectAsState()
+
+    LaunchedEffect(sessionState.isLoggedIn) {
+        if (sessionState.isLoggedIn) {
+            settingsViewModel.reconcileReminderSchedule()
+        }
+    }
 
     if (sessionState.loading) {
         Box(
@@ -150,9 +157,9 @@ fun AppNavigation(
 
             composable(Routes.CHECK_IN) { CheckInScreen() }
             composable(Routes.ACCOUNT) { AccountInfoScreen() }
-            composable(Routes.SETTINGS) { SettingsRoute(
-                viewModel = hiltViewModel(),
-            ) }
+            composable(Routes.SETTINGS) {
+                SettingsRoute(viewModel = hiltViewModel())
+            }
         }
 
         if (showMenu) {

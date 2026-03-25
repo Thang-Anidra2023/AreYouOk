@@ -24,7 +24,7 @@ class ReminderSettingsRepository @Inject constructor(
 
     val checkInRemindersEnabled: Flow<Boolean> =
         context.settingsDataStore.data.map { prefs ->
-            prefs[CHECK_IN_REMINDERS_ENABLED] ?: false
+            prefs[CHECK_IN_REMINDERS_ENABLED] ?: true
         }
 
     suspend fun setCheckInRemindersEnabled(enabled: Boolean) {

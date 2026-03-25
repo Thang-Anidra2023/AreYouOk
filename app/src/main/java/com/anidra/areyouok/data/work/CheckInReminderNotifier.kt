@@ -1,10 +1,12 @@
 package com.anidra.areyouok.data.work
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
+import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.anidra.areyouok.R
@@ -28,6 +30,7 @@ class CheckInReminderNotifier(private val context: Context) {
         )
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     fun show() {
         ensureChannel()
 

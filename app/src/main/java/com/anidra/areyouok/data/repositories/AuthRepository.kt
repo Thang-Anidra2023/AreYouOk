@@ -35,7 +35,7 @@ class AuthRepository @Inject constructor(
     suspend fun logout(clearLocalData: Boolean = true) = withContext(Dispatchers.IO) {
         // Stop app background work first
         CheckInWorkScheduler.cancelAll(context)
-        CheckInReminderWorkScheduler.cancelAll(context)
+        CheckInReminderWorkScheduler.cancel(context)
         EmergencyContactsWorkScheduler.cancelAll(context)
 
         // Remove local user data so another user won't see old data

@@ -4,7 +4,7 @@ import android.content.Context
 import com.anidra.areyouok.data.room.dao.CheckInDao
 import com.anidra.areyouok.data.room.entity.CheckInEntity
 import com.anidra.areyouok.data.room.entity.CheckInSyncState
-import com.anidra.areyouok.data.work.CheckInReminderWorkScheduler
+import com.anidra.areyouok.data.work.CheckInReminderManager
 import com.anidra.areyouok.data.work.CheckInWorkScheduler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -16,6 +16,7 @@ import javax.inject.Singleton
 @Singleton
 class CheckInRepository @Inject constructor(
     private val dao: CheckInDao,
+    private val reminderManager: CheckInReminderManager,
     @ApplicationContext private val context: Context
 ) {
     private fun todayEpochDay(): Long =
@@ -32,36 +33,30 @@ class CheckInRepository @Inject constructor(
         val epochDay = todayEpochDay()
         val existing = dao.getByDay(epochDay)
 
-        // If already synced today, don't create duplicates — but still schedule tomorrow reminder.
         if (existing != null && existing.syncState == CheckInSyncState.SYNCED.value) {
-            CheckInReminderWorkScheduler.scheduleTomorrowMorning(context)
+            reminderManager.reconcile()
             return
         }
 
         val now = System.currentTimeMillis()
         val tz = ZoneId.systemDefault().id
 
-        val entity = (
-                existing?.copy(
-                    timeZoneId = tz,
-                    syncState = CheckInSyncState.PENDING.value,
-                    lastError = null
-                )
-                    ?: CheckInEntity(
-                        epochDay = epochDay,
-                        createdAtMillis = now,
-                        timeZoneId = tz,
-                        syncState = CheckInSyncState.PENDING.value
-                    )
-                )
+        val entity = existing?.copy(
+            timeZoneId = tz,
+            syncState = CheckInSyncState.PENDING.value,
+            lastError = null
+        ) ?: CheckInEntity(
+            epochDay = epochDay,
+            createdAtMillis = now,
+            timeZoneId = tz,
+            syncState = CheckInSyncState.PENDING.value
+        )
 
         dao.upsert(entity)
 
-        // Trigger background upload
         CheckInWorkScheduler.enqueueSyncNow(context)
 
-        // ✅ User checked in today -> reminders tomorrow morning
-        CheckInReminderWorkScheduler.scheduleTomorrowMorning(context)
+        reminderManager.reconcile()
     }
 
     fun retrySyncNow() {

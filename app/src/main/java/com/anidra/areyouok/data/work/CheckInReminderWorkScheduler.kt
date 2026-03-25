@@ -5,47 +5,38 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.time.Duration
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 object CheckInReminderWorkScheduler {
 
-    private const val UNIQUE_ONE_TIME = "checkin_reminder_one_time"
+    private const val UNIQUE_WORK = "checkin_reminder_one_time"
 
     fun scheduleNextFromNow(context: Context) {
-        val now = CheckInReminderSchedule.now()
-        enqueueAt(context, CheckInReminderSchedule.nextSlotAfter(now))
+        enqueueAt(context, CheckInReminderSchedule.nextSlotAfter(CheckInReminderSchedule.now()))
     }
 
     fun scheduleTomorrowMorning(context: Context) {
-        val now = CheckInReminderSchedule.now()
-        enqueueAt(context, CheckInReminderSchedule.tomorrowMorning(now))
+        enqueueAt(context, CheckInReminderSchedule.tomorrowMorning(CheckInReminderSchedule.now()))
     }
 
     fun cancel(context: Context) {
-        WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_ONE_TIME)
+        WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_WORK)
     }
 
-    private fun enqueueAt(context: Context, runAt: java.time.ZonedDateTime) {
+    private fun enqueueAt(context: Context, runAt: ZonedDateTime) {
         val now = CheckInReminderSchedule.now()
         val delayMs = Duration.between(now, runAt).toMillis().coerceAtLeast(0)
 
-        val req = OneTimeWorkRequestBuilder<CheckInReminderWorker>()
-            .addTag("checkin_reminder")
+        val request = OneTimeWorkRequestBuilder<CheckInReminderWorker>()
             .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
+            .addTag("checkin_reminder")
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
-            UNIQUE_ONE_TIME,
+            UNIQUE_WORK,
             ExistingWorkPolicy.REPLACE,
-            req
+            request
         )
-        android.util.Log.d(
-            "CheckInReminder",
-            "Scheduled reminder at=$runAt now=$now delayMs=$delayMs"
-        )
-    }
-
-    fun cancelAll(context: Context) {
-        WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_ONE_TIME)
     }
 }

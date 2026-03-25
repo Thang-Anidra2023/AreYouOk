@@ -3,6 +3,8 @@ package com.anidra.areyouok.viewmodel
 import android.app.Activity
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.anidra.areyouok.data.work.CheckInReminderManager
 import com.anidra.areyouok.permissions.PermissionItemUi
 import com.anidra.areyouok.permissions.PermissionPrefs
 import com.anidra.areyouok.permissions.PermissionStatusChecker
@@ -12,21 +14,15 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import androidx.lifecycle.viewModelScope
-import com.anidra.areyouok.data.repositories.CheckInRepository
-import com.anidra.areyouok.data.repositories.ReminderSettingsRepository
-import com.anidra.areyouok.data.work.CheckInReminderSchedule
-import com.anidra.areyouok.data.work.CheckInReminderWorkScheduler
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val reminderSettingsRepository: ReminderSettingsRepository,
-    private val checkInRepository: CheckInRepository,
+    private val reminderManager: CheckInReminderManager,
 ) : ViewModel() {
 
     private val checker = PermissionStatusChecker(context.applicationContext)
@@ -35,11 +31,11 @@ class SettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SettingsPermissionsUiState())
     val uiState: StateFlow<SettingsPermissionsUiState> = _uiState.asStateFlow()
 
-    val remindersEnabled = reminderSettingsRepository.checkInRemindersEnabled
+    val remindersEnabled = reminderManager.remindersEnabled
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = false
+            initialValue = true
         )
 
     fun refresh(activity: Activity?) {
@@ -62,24 +58,13 @@ class SettingsViewModel @Inject constructor(
 
     fun setCheckInRemindersEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            reminderSettingsRepository.setCheckInRemindersEnabled(enabled)
+            reminderManager.setEnabled(enabled)
+        }
+    }
 
-            if (enabled) {
-                val now = CheckInReminderSchedule.now()
-                when {
-                    checkInRepository.hasCheckedInToday() -> {
-                        CheckInReminderWorkScheduler.scheduleTomorrowMorning(context)
-                    }
-                    CheckInReminderSchedule.isWithinWindow(now) -> {
-                        CheckInReminderWorkScheduler.scheduleNextFromNow(context)
-                    }
-                    else -> {
-                        CheckInReminderWorkScheduler.scheduleTomorrowMorning(context)
-                    }
-                }
-            } else {
-                CheckInReminderWorkScheduler.cancel(context)
-            }
+    fun reconcileReminderSchedule() {
+        viewModelScope.launch {
+            reminderManager.reconcile()
         }
     }
 }

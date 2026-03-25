@@ -76,14 +76,15 @@ fun SettingsRoute(
     val activity = context.findActivity()
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-
     val remindersEnabled by viewModel.remindersEnabled.collectAsStateWithLifecycle()
+
     var autoCheckInEnabled by rememberSaveable { mutableStateOf(false) }
 
     val notificationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) {
         viewModel.refresh(activity)
+        viewModel.reconcileReminderSchedule()
     }
 
     val locationLauncher = rememberLauncherForActivityResult(
@@ -100,18 +101,19 @@ fun SettingsRoute(
 
     LaunchedEffect(activity) {
         viewModel.refresh(activity)
+        viewModel.reconcileReminderSchedule()
     }
 
     DisposableEffect(lifecycleOwner, activity) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refresh(activity)
+                viewModel.reconcileReminderSchedule()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-
 
     LaunchedEffect(uiState.motion.state) {
         if (!uiState.motion.isGranted) {
