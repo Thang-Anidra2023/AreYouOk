@@ -29,7 +29,7 @@ import com.anidra.areyouok.ui.NotificationsScreen
 import com.anidra.areyouok.ui.RegisterScreen
 import com.anidra.areyouok.ui.RequestNotificationPermissionOnce
 import com.anidra.areyouok.ui.screens.AccountInfoScreen
-import com.anidra.areyouok.ui.screens.SettingsScreen
+import com.anidra.areyouok.ui.SettingsScreen
 import com.anidra.areyouok.viewmodel.SessionViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
