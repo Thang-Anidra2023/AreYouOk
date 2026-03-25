@@ -7,7 +7,6 @@ import java.time.ZonedDateTime
 
 object CheckInReminderSchedule {
 
-    // Option A
     private val slots = listOf(
         LocalTime.of(8, 0),
         LocalTime.of(12, 0),

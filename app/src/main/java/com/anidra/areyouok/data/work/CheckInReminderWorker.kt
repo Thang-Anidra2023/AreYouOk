@@ -10,43 +10,51 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.anidra.areyouok.data.repositories.CheckInRepository
+import com.anidra.areyouok.data.repositories.ReminderSettingsRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
 @HiltWorker
 class CheckInReminderWorker @AssistedInject constructor(
     private val checkInRepository: CheckInRepository,
+    private val reminderSettingsRepository: ReminderSettingsRepository,
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
+        if (!reminderSettingsRepository.isCheckInRemindersEnabled()) {
+            return Result.success()
+        }
+
         val now = CheckInReminderSchedule.now()
 
-        // ✅ If checked in today -> reminder tomorrow morning
         if (checkInRepository.hasCheckedInToday()) {
             CheckInReminderWorkScheduler.scheduleTomorrowMorning(applicationContext)
             return Result.success()
         }
 
-        // ✅ Outside 8am–8pm -> reminder tomorrow morning
         if (!CheckInReminderSchedule.isWithinWindow(now)) {
             CheckInReminderWorkScheduler.scheduleTomorrowMorning(applicationContext)
             return Result.success()
         }
 
-        // ✅ Not checked in + within window: notify (if allowed)
         if (canPostNotifications()) {
             CheckInReminderNotifier(applicationContext).show()
         }
 
-        // ✅ Schedule next slot today (or tomorrow 8am if slots are done)
-        CheckInReminderWorkScheduler.scheduleNextFromNow(applicationContext)
+        // Re-check in case user switched it off while this worker was running
+        if (reminderSettingsRepository.isCheckInRemindersEnabled()) {
+            CheckInReminderWorkScheduler.scheduleNextFromNow(applicationContext)
+        }
+
         return Result.success()
     }
 
     private fun canPostNotifications(): Boolean {
-        if (!NotificationManagerCompat.from(applicationContext).areNotificationsEnabled()) return false
+        if (!NotificationManagerCompat.from(applicationContext).areNotificationsEnabled()) {
+            return false
+        }
 
         return if (Build.VERSION.SDK_INT >= 33) {
             ContextCompat.checkSelfPermission(

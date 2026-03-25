@@ -37,7 +37,6 @@ fun AppHamburgerMenu(
     onCheckIn: () -> Unit,
     onAccountInfo: () -> Unit,
     onSettings: () -> Unit,
-    onNotifications: () -> Unit,
     onLogout: () -> Unit
 ) {
     var open by remember { mutableStateOf(false) }
@@ -128,14 +127,7 @@ fun AppHamburgerMenu(
                         onSettings()
                     }
                 )
-                GlassMenuItem(
-                    icon = Icons.Outlined.NotificationsNone,
-                    title = "Notifications",
-                    onClick = {
-                        open = false
-                        onNotifications()
-                    }
-                )
+
                 GlassMenuItem(
                     icon = Icons.AutoMirrored.Outlined.ExitToApp,
                     title = "Log Out",

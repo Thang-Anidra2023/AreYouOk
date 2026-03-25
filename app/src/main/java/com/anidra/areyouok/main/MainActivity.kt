@@ -25,7 +25,6 @@ import com.anidra.areyouok.components.AppHamburgerMenu
 import com.anidra.areyouok.ui.CheckInScreen
 import com.anidra.areyouok.ui.ForgotPasswordScreen
 import com.anidra.areyouok.ui.LoginScreen
-import com.anidra.areyouok.ui.NotificationsScreen
 import com.anidra.areyouok.ui.RegisterScreen
 import com.anidra.areyouok.ui.RequestNotificationPermissionOnce
 import com.anidra.areyouok.ui.SettingsRoute
@@ -61,7 +60,6 @@ object Routes {
 
     const val ACCOUNT = "account"
     const val SETTINGS = "settings"
-    const val NOTIFICATIONS = "notifications"
 }
 
 @Composable
@@ -154,11 +152,7 @@ fun AppNavigation(
             composable(Routes.ACCOUNT) { AccountInfoScreen() }
             composable(Routes.SETTINGS) { SettingsRoute(
                 viewModel = hiltViewModel(),
-                onCheckInTimeClick = {
-                    // navigate to time picker screen
-                }
             ) }
-            composable(Routes.NOTIFICATIONS) { NotificationsScreen() }
         }
 
         if (showMenu) {
@@ -166,7 +160,6 @@ fun AppNavigation(
                 onCheckIn = { navigateIfNotCurrent(Routes.CHECK_IN) },
                 onAccountInfo = { navigateIfNotCurrent(Routes.ACCOUNT) },
                 onSettings = { navigateIfNotCurrent(Routes.SETTINGS) },
-                onNotifications = { navigateIfNotCurrent(Routes.NOTIFICATIONS) },
                 onLogout = { sessionViewModel.logout() }
             )
         }
