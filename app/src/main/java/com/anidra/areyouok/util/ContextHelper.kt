@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 
 tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -24,6 +26,7 @@ fun Context.openAppSettings() {
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 fun Context.openNotificationSettings() {
     startActivity(
         Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {

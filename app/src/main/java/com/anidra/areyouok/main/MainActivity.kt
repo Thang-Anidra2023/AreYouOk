@@ -26,17 +26,26 @@ import com.anidra.areyouok.ui.CheckInScreen
 import com.anidra.areyouok.ui.ForgotPasswordScreen
 import com.anidra.areyouok.ui.LoginScreen
 import com.anidra.areyouok.ui.RegisterScreen
-import com.anidra.areyouok.ui.RequestNotificationPermissionOnce
+import com.anidra.areyouok.permissions.RequestNotificationPermissionOnce
 import com.anidra.areyouok.ui.SettingsRoute
-import com.anidra.areyouok.ui.screens.AccountInfoScreen
+
 import com.anidra.areyouok.viewmodel.SessionViewModel
 import com.anidra.areyouok.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import android.util.Log
+import com.anidra.areyouok.ui.AccountInfoScreen
+import com.anidra.areyouok.ui.AccountRoute
+import com.google.firebase.FirebaseApp
+
+
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val app = FirebaseApp.getInstance()
+        Log.d("FirebaseTest", "name=${app.name}, appId=${app.options.applicationId}, projectId=${app.options.projectId}")
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -106,7 +115,7 @@ fun AppNavigation(
         if (!sessionState.loggingOut &&
             !sessionState.isLoggedIn &&
             route != null &&
-            route != Routes.LOGIN
+            route !in setOf(Routes.LOGIN, Routes.REGISTER, Routes.FORGOT_PASSWORD)
         ) {
             navController.navigate(Routes.LOGIN) {
                 popUpTo(navController.graph.findStartDestination().id) {
@@ -145,7 +154,12 @@ fun AppNavigation(
 
             composable(Routes.REGISTER) {
                 RegisterScreen(
-                    onLoginClick = { navController.popBackStack() }
+                    onRegisterSuccess = {
+                        navController.popBackStack()
+                    },
+                    onLoginClick = {
+                        navController.popBackStack()
+                    }
                 )
             }
 
@@ -156,7 +170,7 @@ fun AppNavigation(
             }
 
             composable(Routes.CHECK_IN) { CheckInScreen() }
-            composable(Routes.ACCOUNT) { AccountInfoScreen() }
+            composable(Routes.ACCOUNT) { AccountRoute() }
             composable(Routes.SETTINGS) {
                 SettingsRoute(viewModel = hiltViewModel())
             }

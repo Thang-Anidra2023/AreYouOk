@@ -9,7 +9,7 @@ object CheckInReminderSchedule {
 
     private val slots = listOf(
         LocalTime.of(8, 0),
-        LocalTime.of(12, 0),
+        LocalTime.of(14, 20),
         LocalTime.of(16, 0),
         LocalTime.of(19, 30),
     )

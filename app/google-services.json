@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "356448904841",
+    "project_id": "feeling-okay",
+    "storage_bucket": "feeling-okay.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:356448904841:android:2a234899249cddf1ca4858",
+        "android_client_info": {
+          "package_name": "com.vitalleadspro.checkin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAucEeJzr35cfySGNrjk_zPEPhcKJhJWpY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

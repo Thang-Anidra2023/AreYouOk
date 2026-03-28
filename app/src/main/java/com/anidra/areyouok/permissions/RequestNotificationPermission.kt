@@ -1,4 +1,4 @@
-package com.anidra.areyouok.ui
+package com.anidra.areyouok.permissions
 
 import android.Manifest
 import android.os.Build

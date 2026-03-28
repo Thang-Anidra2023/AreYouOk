@@ -3,6 +3,21 @@ package com.anidra.areyouok.data.network.dto
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
+data class RegisterRequest(
+    val email: String,
+    val password: String,
+    val registrationType: String? = null,
+    val firstName: String? = null,
+    val middleName: String? = null,
+    val lastName: String? = null,
+    val country: String? = null,
+    val state: String? = null,
+    val mobileNumber: String? = null,
+    val addressLine1: String? = null,
+    val addressLine2: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class LoginRequest(
     val email: String,
     val password: String

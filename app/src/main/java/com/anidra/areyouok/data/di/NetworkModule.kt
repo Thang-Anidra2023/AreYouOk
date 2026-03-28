@@ -3,6 +3,7 @@ package com.anidra.areyouok.data.di
 import com.anidra.areyouok.data.network.AuthApi
 import com.anidra.areyouok.data.network.CheckInApi
 import com.anidra.areyouok.data.network.EmergencyContactsApi
+import com.anidra.areyouok.data.network.UserApiService
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
@@ -19,7 +20,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // OpenAPI server base URL
     private const val BASE_URL = "https://feeling-okay.com/api/checkin/"
 
     @Provides
@@ -31,13 +31,12 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttp(): OkHttpClient {
-        val logger = HttpLoggingInterceptor().apply {
-            level = if (com.anidra.areyouok.BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.BASIC
-            }
+    fun provideOkHttp(
+    ): OkHttpClient {
+        val logger = HttpLoggingInterceptor { message ->
+            android.util.Log.d("Network", message)
+        }.apply {
+            level = HttpLoggingInterceptor.Level.BODY
             redactHeader("Authorization")
         }
 
@@ -69,4 +68,9 @@ object NetworkModule {
     @Singleton
     fun provideEmergencyContactsApi(retrofit: Retrofit): EmergencyContactsApi =
         retrofit.create(EmergencyContactsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideUserApiService(retrofit: Retrofit): UserApiService =
+        retrofit.create(UserApiService::class.java)
 }
