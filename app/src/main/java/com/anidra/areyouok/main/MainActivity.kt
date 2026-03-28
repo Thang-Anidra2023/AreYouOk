@@ -35,6 +35,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import android.util.Log
 import com.anidra.areyouok.ui.AccountInfoScreen
 import com.anidra.areyouok.ui.AccountRoute
+import com.anidra.areyouok.ui.EditAccountRoute
 import com.google.firebase.FirebaseApp
 
 
@@ -69,6 +70,7 @@ object Routes {
 
     const val ACCOUNT = "account"
     const val SETTINGS = "settings"
+    const val EDIT_ACCOUNT = "edit_account"
 }
 
 @Composable
@@ -170,9 +172,39 @@ fun AppNavigation(
             }
 
             composable(Routes.CHECK_IN) { CheckInScreen() }
-            composable(Routes.ACCOUNT) { AccountRoute() }
+            composable(Routes.ACCOUNT) { backStackEntry ->
+                val refreshOnReturn by backStackEntry
+                    .savedStateHandle
+                    .getStateFlow("account_updated", false)
+                    .collectAsState()
+
+                AccountRoute(
+                    onEditProfile = {
+                        navController.navigate(Routes.EDIT_ACCOUNT)
+                    },
+                    refreshOnReturn = refreshOnReturn,
+                    onRefreshConsumed = {
+                        backStackEntry.savedStateHandle["account_updated"] = false
+                    }
+                )
+            }
             composable(Routes.SETTINGS) {
                 SettingsRoute(viewModel = hiltViewModel())
+            }
+
+            composable(Routes.EDIT_ACCOUNT) {
+                EditAccountRoute(
+                    onSaved = {
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("account_updated", true)
+
+                        navController.popBackStack()
+                    },
+                    onBack = {
+                        navController.popBackStack()
+                    }
+                )
             }
         }
 

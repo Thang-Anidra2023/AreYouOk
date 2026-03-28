@@ -41,7 +41,7 @@ import com.anidra.areyouok.viewmodel.CheckInViewModel
 @Composable
 fun CheckInScreen(
     modifier: Modifier = Modifier,
-    name: String = "Alex",
+    name: String = "",
     viewModel: CheckInViewModel = hiltViewModel(),
     onCheckIn: () -> Unit = {}
 ) {

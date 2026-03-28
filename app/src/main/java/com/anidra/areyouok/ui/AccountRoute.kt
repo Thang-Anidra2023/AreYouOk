@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,9 +25,18 @@ import com.anidra.areyouok.viewmodel.AccountViewModel
 @Composable
 fun AccountRoute(
     viewModel: AccountViewModel = hiltViewModel(),
-    onEditProfile: () -> Unit = {}
+    onEditProfile: () -> Unit = {},
+    refreshOnReturn: Boolean = false,
+    onRefreshConsumed: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(refreshOnReturn) {
+        if (refreshOnReturn) {
+            viewModel.loadAccount()
+            onRefreshConsumed()
+        }
+    }
 
     when {
         uiState.isLoading -> {
