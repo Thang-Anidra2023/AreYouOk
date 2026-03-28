@@ -9,13 +9,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.outlined.NotificationsNone
+import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,27 +29,22 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.outlined.CheckCircleOutline
-import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 
 @Composable
 fun AppHamburgerMenu(
     modifier: Modifier = Modifier,
     onCheckIn: () -> Unit,
     onAccountInfo: () -> Unit,
+    onPeopleIWatch: () -> Unit,
     onSettings: () -> Unit,
     onLogout: () -> Unit
 ) {
     var open by remember { mutableStateOf(false) }
-
-    // Status bar safe padding for edge-to-edge
     val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
-        // --- Button (top-left) ---
         Box(
             modifier = Modifier
                 .padding(start = 18.dp, top = topInset + 18.dp)
@@ -61,7 +57,10 @@ fun AppHamburgerMenu(
                 )
                 .clip(RoundedCornerShape(20.dp))
                 .background(Color.White.copy(alpha = 0.10f))
-                .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)), RoundedCornerShape(20.dp))
+                .border(
+                    BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                    RoundedCornerShape(20.dp)
+                )
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
@@ -75,7 +74,6 @@ fun AppHamburgerMenu(
             )
         }
 
-        // --- Scrim to dismiss when open ---
         AnimatedVisibility(
             visible = open,
             enter = fadeIn(),
@@ -91,7 +89,6 @@ fun AppHamburgerMenu(
             )
         }
 
-        // --- Menu card (anchored below button) ---
         AnimatedVisibility(
             visible = open,
             enter = fadeIn(),
@@ -100,7 +97,7 @@ fun AppHamburgerMenu(
         ) {
             GlassMenuCard(
                 modifier = Modifier
-                    .padding(start = 18.dp, top = topInset + 18.dp + 78.dp) // 64 button + gap
+                    .padding(start = 18.dp, top = topInset + 18.dp + 78.dp)
             ) {
                 GlassMenuItem(
                     icon = Icons.Outlined.CheckCircleOutline,
@@ -119,6 +116,16 @@ fun AppHamburgerMenu(
                         onAccountInfo()
                     }
                 )
+
+                GlassMenuItem(
+                    icon = Icons.Outlined.Visibility,
+                    title = "People I Watch",
+                    onClick = {
+                        open = false
+                        onPeopleIWatch()
+                    }
+                )
+
                 GlassMenuItem(
                     icon = Icons.Outlined.Settings,
                     title = "Settings",

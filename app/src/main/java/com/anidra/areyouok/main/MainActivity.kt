@@ -33,9 +33,14 @@ import com.anidra.areyouok.viewmodel.SessionViewModel
 import com.anidra.areyouok.viewmodel.SettingsViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import android.util.Log
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.anidra.areyouok.ui.AccountInfoScreen
 import com.anidra.areyouok.ui.AccountRoute
+import com.anidra.areyouok.ui.AddPersonToWatchScreen
 import com.anidra.areyouok.ui.EditAccountRoute
+import com.anidra.areyouok.ui.PeopleIWatchScreen
+import com.anidra.areyouok.ui.PersonWatchDetailScreen
 import com.google.firebase.FirebaseApp
 
 
@@ -71,6 +76,12 @@ object Routes {
     const val ACCOUNT = "account"
     const val SETTINGS = "settings"
     const val EDIT_ACCOUNT = "edit_account"
+
+    const val PEOPLE_I_WATCH = "people_i_watch"
+    const val ADD_PERSON_TO_WATCH = "add_person_to_watch"
+    const val PERSON_WATCH_DETAIL = "person_watch_detail/{personId}"
+
+    fun personWatchDetail(personId: String): String = "person_watch_detail/$personId"
 }
 
 @Composable
@@ -206,12 +217,55 @@ fun AppNavigation(
                     }
                 )
             }
+
+            composable(Routes.PEOPLE_I_WATCH) {
+                PeopleIWatchScreen(
+                    onAddClick = { navController.navigate(Routes.ADD_PERSON_TO_WATCH) },
+                    onPersonClick = { personId ->
+                        navController.navigate(Routes.personWatchDetail(personId))
+                    },
+                    onResendInviteClick = {
+                        // mock only for now
+                    }
+                )
+            }
+
+            composable(Routes.ADD_PERSON_TO_WATCH) {
+                AddPersonToWatchScreen(
+                    onCancel = { navController.popBackStack() },
+                    onSendInvite = { _, _, _ ->
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable(
+                route = Routes.PERSON_WATCH_DETAIL,
+                arguments = listOf(
+                    navArgument("personId") { type = NavType.StringType }
+                )
+            ) { backStackEntry ->
+                val personId = backStackEntry.arguments?.getString("personId").orEmpty()
+
+                PersonWatchDetailScreen(
+                    personId = personId,
+                    onBack = { navController.popBackStack() },
+                    onOpenMapsClick = {
+                        // later: open geo intent here
+                    }
+                )
+            }
         }
+
+
 
         if (showMenu) {
             AppHamburgerMenu(
                 onCheckIn = { navigateIfNotCurrent(Routes.CHECK_IN) },
                 onAccountInfo = { navigateIfNotCurrent(Routes.ACCOUNT) },
+                onPeopleIWatch = {
+                    navController.navigate(Routes.PEOPLE_I_WATCH)
+                },
                 onSettings = { navigateIfNotCurrent(Routes.SETTINGS) },
                 onLogout = { sessionViewModel.logout() }
             )
